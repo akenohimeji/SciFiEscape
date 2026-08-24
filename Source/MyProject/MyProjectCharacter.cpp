@@ -5,42 +5,35 @@
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/Controller.h"
 #include "GameFramework/SpringArmComponent.h"
+#include "DrawDebugHelpers.h" // Для отрисовки лазерных лучей выстрела
 
 AMyProjectCharacter::AMyProjectCharacter()
 {
-	// Включаем Tick, чтобы работало ежекадное уменьшение стамины
 	PrimaryActorTick.bCanEverTick = true;
 
-	// Set size for collision capsule
 	GetCapsuleComponent()->InitCapsuleSize(42.f, 96.0f);
 
-	// set our turn rates for input
 	BaseTurnRate = 45.f;
 	BaseLookUpRate = 45.f;
 
-	// Don't rotate when the controller rotates. Let that just affect the camera.
 	bUseControllerRotationPitch = false;
 	bUseControllerRotationYaw = false;
 	bUseControllerRotationRoll = false;
 
-	// Configure character movement
-	GetCharacterMovement()->bOrientRotationToMovement = true; // Character moves in the direction of input...	
-	GetCharacterMovement()->RotationRate = FRotator(0.0f, 540.0f, 0.0f); // ...at this rotation rate
+	GetCharacterMovement()->bOrientRotationToMovement = true;
+	GetCharacterMovement()->RotationRate = FRotator(0.0f, 540.0f, 0.0f);
 	GetCharacterMovement()->JumpZVelocity = 600.f;
 	GetCharacterMovement()->AirControl = 0.2f;
 
-	// Create a camera boom (pulls in towards the player if there is a collision)
 	CameraBoom = CreateDefaultSubobject<USpringArmComponent>(TEXT("CameraBoom"));
 	CameraBoom->SetupAttachment(RootComponent);
-	CameraBoom->TargetArmLength = 300.0f; // The camera follows at this distance behind the character	
-	CameraBoom->bUsePawnControlRotation = true; // Rotate the arm based on the controller
+	CameraBoom->TargetArmLength = 300.0f;
+	CameraBoom->bUsePawnControlRotation = true;
 
-	// Create a follow camera
 	FollowCamera = CreateDefaultSubobject<UCameraComponent>(TEXT("FollowCamera"));
-	FollowCamera->SetupAttachment(CameraBoom, USpringArmComponent::SocketName); // Attach the camera to the end of the boom and let the boom adjust to match the controller orientation
-	FollowCamera->bUsePawnControlRotation = false; // Camera does not rotate relative to arm
+	FollowCamera->SetupAttachment(CameraBoom, USpringArmComponent::SocketName);
+	FollowCamera->bUsePawnControlRotation = false;
 
-	// Устанавливаем стартовую скорость ходьбы из нашей переменной
 	GetCharacterMovement()->MaxWalkSpeed = WalkSpeed;
 }
 
@@ -48,23 +41,20 @@ void AMyProjectCharacter::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 
-	// Проверяем логику спринта каждый кадр
 	if (bWantsToSprint && GetCharacterMovement()->Velocity.Size() > 0.0f)
 	{
-		// Если бежим и есть стамина — тратим её
 		if (Stamina > 0.0f)
 		{
 			Stamina -= StaminaDrainRate * DeltaTime;
 			if (Stamina <= 0.0f)
 			{
 				Stamina = 0.0f;
-				GetCharacterMovement()->MaxWalkSpeed = WalkSpeed; // Замедляемся, если стамина кончилась
+				GetCharacterMovement()->MaxWalkSpeed = WalkSpeed;
 			}
 		}
 	}
 	else
 	{
-		// Если не спринтуем — плавно восстанавливаем стамину (например, +10 в секунду)
 		if (Stamina < 100.0f)
 		{
 			Stamina += 10.0f * DeltaTime;
@@ -76,7 +66,6 @@ void AMyProjectCharacter::Tick(float DeltaTime)
 void AMyProjectCharacter::StartSprint()
 {
 	bWantsToSprint = true;
-	// Разрешаем разгон только если стамины больше нуля
 	if (Stamina > 0.0f)
 	{
 		GetCharacterMovement()->MaxWalkSpeed = SprintSpeed;
@@ -95,9 +84,12 @@ void AMyProjectCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInput
 	PlayerInputComponent->BindAction("Jump", IE_Pressed, this, &ACharacter::Jump);
 	PlayerInputComponent->BindAction("Jump", IE_Released, this, &ACharacter::StopJumping);
 
-	// ПРИВЯЗКА КНОПКИ СПРИНТА (в настройках проекта Unreal Engine экшен должен называться "Sprint")
 	PlayerInputComponent->BindAction("Sprint", IE_Pressed, this, &AMyProjectCharacter::StartSprint);
 	PlayerInputComponent->BindAction("Sprint", IE_Released, this, &AMyProjectCharacter::StopSprint);
+
+	// Привязка кнопок для боевой системы
+	PlayerInputComponent->BindAction("Shoot", IE_Pressed, this, &AMyProjectCharacter::Shoot);
+	PlayerInputComponent->BindAction("Reload", IE_Pressed, this, &AMyProjectCharacter::Reload);
 
 	PlayerInputComponent->BindAxis("MoveForward", this, &AMyProjectCharacter::MoveForward);
 	PlayerInputComponent->BindAxis("MoveRight", this, &AMyProjectCharacter::MoveRight);
@@ -112,7 +104,6 @@ void AMyProjectCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInput
 
 void AMyProjectCharacter::OnResetVR()
 {
-	
 }
 
 void AMyProjectCharacter::TouchStarted(ETouchIndex::Type FingerIndex, FVector Location)
@@ -154,5 +145,53 @@ void AMyProjectCharacter::MoveRight(float Value)
 		const FRotator YawRotation(0, Rotation.Yaw, 0);
 		const FVector Direction = FRotationMatrix(YawRotation).GetUnitAxis(EAxis::Y);
 		AddMovementInput(Direction, Value);
+	}
+}
+
+void AMyProjectCharacter::Shoot()
+{
+	if (Ammo <= 0)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("No ammo! Need to reload."));
+		return;
+	}
+
+	Ammo--;
+
+	FVector CameraLocation;
+	FRotator CameraRotation;
+
+	if (GetController())
+	{
+		GetController()->GetPlayerViewPoint(CameraLocation, CameraRotation);
+	}
+
+	FVector TraceStart = CameraLocation;
+	FVector TraceEnd = TraceStart + (CameraRotation.Vector() * WeaponRange);
+
+	FHitResult HitResult;
+	FCollisionQueryParams QueryParams;
+	QueryParams.AddIgnoredActor(this);
+
+	bool bHit = GetWorld()->LineTraceSingleByChannel(HitResult, TraceStart, TraceEnd, ECC_Visibility, QueryParams);
+
+	DrawDebugLine(GetWorld(), TraceStart, TraceEnd, FColor::Red, false, 2.0f, 0, 1.0f);
+
+	if (bHit)
+	{
+		AActor* HitActor = HitResult.GetActor();
+		if (HitActor)
+		{
+			UE_LOG(LogTemp, Log, TEXT("Hit target: %s"), *HitActor->GetName());
+		}
+	}
+}
+
+void AMyProjectCharacter::Reload()
+{
+	if (Ammo < MaxAmmo)
+	{
+		Ammo = MaxAmmo;
+		UE_LOG(LogTemp, Log, TEXT("Weapon Reloaded!"));
 	}
 }
