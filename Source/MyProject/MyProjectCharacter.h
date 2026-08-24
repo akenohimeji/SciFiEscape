@@ -15,6 +15,10 @@ class AMyProjectCharacter : public ACharacter
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Camera, meta = (AllowPrivateAccess = "true"))
 	class UCameraComponent* FollowCamera;
 
+	/** НОВОЕ: Компонент для 3D-модели автомата */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Weapon, meta = (AllowPrivateAccess = "true"))
+	class USkeletalMeshComponent* WeaponMesh;
+
 public:
 	AMyProjectCharacter();
 
@@ -44,6 +48,10 @@ protected:
 	// Функции боевой системы
 	void Shoot();
 	void Reload();
+
+	/** Событие для вызова эффектов в Blueprint */
+	UFUNCTION(BlueprintImplementableEvent, Category = "Combat|Effects")
+	void OnHitEffect(FVector ImpactPoint, FVector ImpactNormal);
 
 protected:
 	// Характеристики
@@ -76,4 +84,5 @@ protected:
 public:
 	FORCEINLINE class USpringArmComponent* GetCameraBoom() const { return CameraBoom; }
 	FORCEINLINE class UCameraComponent* GetFollowCamera() const { return FollowCamera; }
+	FORCEINLINE class USkeletalMeshComponent* GetWeaponMesh() const { return WeaponMesh; }
 };

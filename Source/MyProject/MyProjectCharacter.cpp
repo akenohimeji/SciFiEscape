@@ -6,7 +6,9 @@
 #include "GameFramework/Controller.h"
 #include "GameFramework/SpringArmComponent.h"
 #include "Kismet/GameplayStatics.h"
-#include "DrawDebugHelpers.h" // Для отрисовки лазерных лучей выстрела
+#include "Components/SkeletalMeshComponent.h"
+#include "Engine/World.h"
+#include "DrawDebugHelpers.h"
 
 AMyProjectCharacter::AMyProjectCharacter()
 {
@@ -34,6 +36,11 @@ AMyProjectCharacter::AMyProjectCharacter()
 	FollowCamera = CreateDefaultSubobject<UCameraComponent>(TEXT("FollowCamera"));
 	FollowCamera->SetupAttachment(CameraBoom, USpringArmComponent::SocketName);
 	FollowCamera->bUsePawnControlRotation = false;
+
+	// НОВОЕ: Инициализируем компонент оружия и привязываем его к руке (к WeaponSocket)
+	WeaponMesh = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("WeaponMesh"));
+	WeaponMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	WeaponMesh->SetupAttachment(GetMesh(), TEXT("WeaponSocket"));
 
 	GetCharacterMovement()->MaxWalkSpeed = WalkSpeed;
 }
@@ -88,7 +95,6 @@ void AMyProjectCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInput
 	PlayerInputComponent->BindAction("Sprint", IE_Pressed, this, &AMyProjectCharacter::StartSprint);
 	PlayerInputComponent->BindAction("Sprint", IE_Released, this, &AMyProjectCharacter::StopSprint);
 
-	// Привязка кнопок для боевой системы
 	PlayerInputComponent->BindAction("Shoot", IE_Pressed, this, &AMyProjectCharacter::Shoot);
 	PlayerInputComponent->BindAction("Reload", IE_Pressed, this, &AMyProjectCharacter::Reload);
 
@@ -157,27 +163,27 @@ void AMyProjectCharacter::Shoot()
 		return;
 	}
 
+	if (FollowCamera == nullptr || WeaponMesh == nullptr) return;
+
 	Ammo--;
 
-	// ГАРАНТИРОВАННЫЙ РАСЧЕТ ИЗ КАМЕРЫ ПЕРСОНАЖА
-	if (FollowCamera == nullptr) return;
+	// 1. НАЧАЛО ЛУЧА: Берем координаты сокета на кончике ствола автомата
+	FVector TraceStart = WeaponMesh->GetSocketLocation(TEXT("MuzzleFlashSocket"));
 
-	// Берем точную позицию камеры и её направление вперед
-	FVector TraceStart = FollowCamera->GetComponentLocation();
-	FVector ForwardVector = FollowCamera->GetForwardVector();
+	// 2. НАПРАВЛЕНИЕ ВЫСТРЕЛА: Оставляем из камеры для точного прицеливания
+	FVector CameraForward = FollowCamera->GetForwardVector();
 
-	// Конечная точка луча (Старт + Направление * Дистанцию)
-	FVector TraceEnd = TraceStart + (ForwardVector * WeaponRange);
+	// Конечная точка луча
+	FVector TraceEnd = TraceStart + (CameraForward * WeaponRange);
 
 	FHitResult HitResult;
 	FCollisionQueryParams QueryParams;
-	QueryParams.AddIgnoredActor(this); // Игнорируем себя, чтобы пуля не застревала в игроке
+	QueryParams.AddIgnoredActor(this);
 
-	// Пускаем луч
+	// Пускаем луч трассировки
 	bool bHit = GetWorld()->LineTraceSingleByChannel(HitResult, TraceStart, TraceEnd, ECC_Visibility, QueryParams);
 
-	// Отрисовка линии для отладки
-	// Делаем линию толщиной 5.0f (вместо 1.0f), чтобы её было отлично видно
+	// Отрисовка линии лазера для визуальной отладки
 	DrawDebugLine(GetWorld(), TraceStart, TraceEnd, FColor::Green, false, 3.0f, 0, 5.0f);
 
 	if (bHit)
@@ -187,13 +193,22 @@ void AMyProjectCharacter::Shoot()
 		{
 			UE_LOG(LogTemp, Log, TEXT("Hit target: %s"), *HitActor->GetName());
 
-			// Рисуем красную сферу в ТОЧНОЙ точке, куда врезалась пуля
 			DrawDebugSphere(GetWorld(), HitResult.ImpactPoint, 15.0f, 12, FColor::Red, false, 3.0f);
 
 			UGameplayStatics::ApplyDamage(HitActor, 25.0f, GetController(), this, UDamageType::StaticClass());
+
+			// Вызываем логику спавна эффектов в Blueprint
+			OnHitEffect(HitResult.ImpactPoint, HitResult.ImpactNormal);
+		}
+		else
+		{
+			OnHitEffect(HitResult.ImpactPoint, HitResult.ImpactNormal);
 		}
 	}
-
+	else
+	{
+		OnHitEffect(TraceEnd, -CameraForward);
+	}
 }
 
 void AMyProjectCharacter::Reload()
