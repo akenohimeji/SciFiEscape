@@ -159,24 +159,26 @@ void AMyProjectCharacter::Shoot()
 
 	Ammo--;
 
-	FVector CameraLocation;
-	FRotator CameraRotation;
+	// ГАРАНТИРОВАННЫЙ РАСЧЕТ ИЗ КАМЕРЫ ПЕРСОНАЖА
+	if (FollowCamera == nullptr) return;
 
-	if (GetController())
-	{
-		GetController()->GetPlayerViewPoint(CameraLocation, CameraRotation);
-	}
+	// Берем точную позицию камеры и её направление вперед
+	FVector TraceStart = FollowCamera->GetComponentLocation();
+	FVector ForwardVector = FollowCamera->GetForwardVector();
 
-	FVector TraceStart = CameraLocation;
-	FVector TraceEnd = TraceStart + (CameraRotation.Vector() * WeaponRange);
+	// Конечная точка луча (Старт + Направление * Дистанцию)
+	FVector TraceEnd = TraceStart + (ForwardVector * WeaponRange);
 
 	FHitResult HitResult;
 	FCollisionQueryParams QueryParams;
-	QueryParams.AddIgnoredActor(this);
+	QueryParams.AddIgnoredActor(this); // Игнорируем себя, чтобы пуля не застревала в игроке
 
+	// Пускаем луч
 	bool bHit = GetWorld()->LineTraceSingleByChannel(HitResult, TraceStart, TraceEnd, ECC_Visibility, QueryParams);
 
-	DrawDebugLine(GetWorld(), TraceStart, TraceEnd, FColor::Red, false, 2.0f, 0, 1.0f);
+	// Отрисовка линии для отладки
+	// Делаем линию толщиной 5.0f (вместо 1.0f), чтобы её было отлично видно
+	DrawDebugLine(GetWorld(), TraceStart, TraceEnd, FColor::Green, false, 3.0f, 0, 5.0f);
 
 	if (bHit)
 	{
@@ -185,7 +187,9 @@ void AMyProjectCharacter::Shoot()
 		{
 			UE_LOG(LogTemp, Log, TEXT("Hit target: %s"), *HitActor->GetName());
 
-			// Наносим 25 единиц урона объекту, в который попали
+			// Рисуем красную сферу в ТОЧНОЙ точке, куда врезалась пуля
+			DrawDebugSphere(GetWorld(), HitResult.ImpactPoint, 15.0f, 12, FColor::Red, false, 3.0f);
+
 			UGameplayStatics::ApplyDamage(HitActor, 25.0f, GetController(), this, UDamageType::StaticClass());
 		}
 	}
