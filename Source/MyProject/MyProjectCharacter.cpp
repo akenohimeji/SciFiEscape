@@ -5,6 +5,7 @@
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/Controller.h"
 #include "GameFramework/SpringArmComponent.h"
+#include "Kismet/GameplayStatics.h"
 #include "DrawDebugHelpers.h" // Для отрисовки лазерных лучей выстрела
 
 AMyProjectCharacter::AMyProjectCharacter()
@@ -183,8 +184,12 @@ void AMyProjectCharacter::Shoot()
 		if (HitActor)
 		{
 			UE_LOG(LogTemp, Log, TEXT("Hit target: %s"), *HitActor->GetName());
+
+			// Наносим 25 единиц урона объекту, в который попали
+			UGameplayStatics::ApplyDamage(HitActor, 25.0f, GetController(), this, UDamageType::StaticClass());
 		}
 	}
+
 }
 
 void AMyProjectCharacter::Reload()
