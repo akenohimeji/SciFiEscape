@@ -15,7 +15,7 @@ class AMyProjectCharacter : public ACharacter
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Camera, meta = (AllowPrivateAccess = "true"))
 	class UCameraComponent* FollowCamera;
 
-	/** НОВОЕ: Компонент для 3D-модели автомата */
+	/** Компонент для 3D-модели автомата/револьвера */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Weapon, meta = (AllowPrivateAccess = "true"))
 	class USkeletalMeshComponent* WeaponMesh;
 
@@ -49,9 +49,13 @@ protected:
 	void Shoot();
 	void Reload();
 
-	/** Событие для вызова эффектов в Blueprint */
+	/** Событие для вызова эффектов попадания в Blueprint */
 	UFUNCTION(BlueprintImplementableEvent, Category = "Combat|Effects")
 	void OnHitEffect(FVector ImpactPoint, FVector ImpactNormal);
+
+	/** Событие для вызова вспышки выстрела в Blueprint */
+	UFUNCTION(BlueprintImplementableEvent, Category = "Combat|Effects")
+	void OnMuzzleFlash();
 
 protected:
 	// Характеристики
@@ -62,13 +66,16 @@ protected:
 	float Stamina = 100.0f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Attributes")
-	int32 Ammo = 30;
+	int32 Ammo = 6;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Attributes")
-	int32 MaxAmmo = 30;
+	int32 MaxAmmo = 6;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat")
 	float WeaponRange = 5000.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat")
+	float BaseDamage = 35.0f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Movement")
 	float WalkSpeed = 600.0f;

@@ -37,7 +37,6 @@ AMyProjectCharacter::AMyProjectCharacter()
 	FollowCamera->SetupAttachment(CameraBoom, USpringArmComponent::SocketName);
 	FollowCamera->bUsePawnControlRotation = false;
 
-	// НОВОЕ: Инициализируем компонент оружия и привязываем его к руке (к WeaponSocket)
 	WeaponMesh = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("WeaponMesh"));
 	WeaponMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 	WeaponMesh->SetupAttachment(GetMesh(), TEXT("WeaponSocket"));
@@ -157,6 +156,7 @@ void AMyProjectCharacter::MoveRight(float Value)
 
 void AMyProjectCharacter::Shoot()
 {
+	// 1. Проверка наличия патронов
 	if (Ammo <= 0)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("No ammo! Need to reload."));
@@ -165,26 +165,26 @@ void AMyProjectCharacter::Shoot()
 
 	if (FollowCamera == nullptr || WeaponMesh == nullptr) return;
 
+	// 2. Тратим патрон
 	Ammo--;
 
-	// 1. НАЧАЛО ЛУЧА: Берем координаты сокета на кончике ствола автомата
+	// 3. Вызываем вспышку у дула оружия в Blueprint
+	OnMuzzleFlash();
+
+	// 4. Расчет направления выстрела
 	FVector TraceStart = WeaponMesh->GetSocketLocation(TEXT("MuzzleFlashSocket"));
-
-	// 2. НАПРАВЛЕНИЕ ВЫСТРЕЛА: Оставляем из камеры для точного прицеливания
 	FVector CameraForward = FollowCamera->GetForwardVector();
-
-	// Конечная точка луча
 	FVector TraceEnd = TraceStart + (CameraForward * WeaponRange);
 
 	FHitResult HitResult;
 	FCollisionQueryParams QueryParams;
-	QueryParams.AddIgnoredActor(this);
+	QueryParams.AddIgnoredActor(this); // Игнорируем стрелка
 
-	// Пускаем луч трассировки
+	// 5. Выстрел лучом
 	bool bHit = GetWorld()->LineTraceSingleByChannel(HitResult, TraceStart, TraceEnd, ECC_Visibility, QueryParams);
 
-	// Отрисовка линии лазера для визуальной отладки
-	DrawDebugLine(GetWorld(), TraceStart, TraceEnd, FColor::Green, false, 3.0f, 0, 5.0f);
+	// Рисуем зеленую линию отладки в игре
+	DrawDebugLine(GetWorld(), TraceStart, bHit ? HitResult.ImpactPoint : TraceEnd, FColor::Green, false, 2.0f, 0, 2.0f);
 
 	if (bHit)
 	{
@@ -193,20 +193,24 @@ void AMyProjectCharacter::Shoot()
 		{
 			UE_LOG(LogTemp, Log, TEXT("Hit target: %s"), *HitActor->GetName());
 
-			DrawDebugSphere(GetWorld(), HitResult.ImpactPoint, 15.0f, 12, FColor::Red, false, 3.0f);
+			// Сфера отладки в точке попадания
+			DrawDebugSphere(GetWorld(), HitResult.ImpactPoint, 15.0f, 12, FColor::Red, false, 2.0f);
 
-			UGameplayStatics::ApplyDamage(HitActor, 25.0f, GetController(), this, UDamageType::StaticClass());
+			// Нанесение урона мишени/врагу
+			UGameplayStatics::ApplyDamage(HitActor, BaseDamage, GetController(), this, UDamageType::StaticClass());
 
-			// Вызываем логику спавна эффектов в Blueprint
+			// Вызов эффекта попадания в Blueprint
 			OnHitEffect(HitResult.ImpactPoint, HitResult.ImpactNormal);
 		}
 		else
 		{
+			// Попадание в статическую геометрию без Actor-скрипта
 			OnHitEffect(HitResult.ImpactPoint, HitResult.ImpactNormal);
 		}
 	}
 	else
 	{
+		// Промах — вызываем эффект "в воздухе" на максимальной дистанции
 		OnHitEffect(TraceEnd, -CameraForward);
 	}
 }
