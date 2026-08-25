@@ -28,6 +28,19 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Camera)
 	float BaseLookUpRate;
 
+	// Переносим переменные в public, чтобы Widget HUD видел их напрямую без функций
+	UPROPERTY(BlueprintReadOnly, Category = "Attributes")
+	float Health = 100.0f;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Attributes")
+	float Stamina = 100.0f;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Attributes")
+	int32 Ammo = 6;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Attributes")
+	int32 MaxAmmo = 6;
+
 protected:
 	void OnResetVR();
 	void MoveForward(float Value);
@@ -58,24 +71,11 @@ protected:
 	void OnMuzzleFlash();
 
 protected:
-	// Характеристики
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Attributes")
-	float Health = 100.0f;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Attributes")
-	float Stamina = 100.0f;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Attributes")
-	int32 Ammo = 6;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Attributes")
-	int32 MaxAmmo = 6;
-
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat")
 	float WeaponRange = 5000.0f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat")
-	float BaseDamage = 35.0f;
+	float BaseDamage = 25.0f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Movement")
 	float WalkSpeed = 600.0f;

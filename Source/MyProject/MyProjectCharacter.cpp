@@ -156,7 +156,6 @@ void AMyProjectCharacter::MoveRight(float Value)
 
 void AMyProjectCharacter::Shoot()
 {
-	// 1. Проверка наличия патронов
 	if (Ammo <= 0)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("No ammo! Need to reload."));
@@ -165,25 +164,19 @@ void AMyProjectCharacter::Shoot()
 
 	if (FollowCamera == nullptr || WeaponMesh == nullptr) return;
 
-	// 2. Тратим патрон
 	Ammo--;
-
-	// 3. Вызываем вспышку у дула оружия в Blueprint
 	OnMuzzleFlash();
 
-	// 4. Расчет направления выстрела
 	FVector TraceStart = WeaponMesh->GetSocketLocation(TEXT("MuzzleFlashSocket"));
 	FVector CameraForward = FollowCamera->GetForwardVector();
 	FVector TraceEnd = TraceStart + (CameraForward * WeaponRange);
 
 	FHitResult HitResult;
 	FCollisionQueryParams QueryParams;
-	QueryParams.AddIgnoredActor(this); // Игнорируем стрелка
+	QueryParams.AddIgnoredActor(this);
 
-	// 5. Выстрел лучом
 	bool bHit = GetWorld()->LineTraceSingleByChannel(HitResult, TraceStart, TraceEnd, ECC_Visibility, QueryParams);
 
-	// Рисуем зеленую линию отладки в игре
 	DrawDebugLine(GetWorld(), TraceStart, bHit ? HitResult.ImpactPoint : TraceEnd, FColor::Green, false, 2.0f, 0, 2.0f);
 
 	if (bHit)
@@ -192,25 +185,17 @@ void AMyProjectCharacter::Shoot()
 		if (HitActor)
 		{
 			UE_LOG(LogTemp, Log, TEXT("Hit target: %s"), *HitActor->GetName());
-
-			// Сфера отладки в точке попадания
 			DrawDebugSphere(GetWorld(), HitResult.ImpactPoint, 15.0f, 12, FColor::Red, false, 2.0f);
-
-			// Нанесение урона мишени/врагу
 			UGameplayStatics::ApplyDamage(HitActor, BaseDamage, GetController(), this, UDamageType::StaticClass());
-
-			// Вызов эффекта попадания в Blueprint
 			OnHitEffect(HitResult.ImpactPoint, HitResult.ImpactNormal);
 		}
 		else
 		{
-			// Попадание в статическую геометрию без Actor-скрипта
 			OnHitEffect(HitResult.ImpactPoint, HitResult.ImpactNormal);
 		}
 	}
 	else
 	{
-		// Промах — вызываем эффект "в воздухе" на максимальной дистанции
 		OnHitEffect(TraceEnd, -CameraForward);
 	}
 }
