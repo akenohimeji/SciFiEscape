@@ -28,18 +28,21 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Camera)
 	float BaseLookUpRate;
 
-	// Переносим переменные в public, чтобы Widget HUD видел их напрямую без функций
-	UPROPERTY(BlueprintReadOnly, Category = "Attributes")
+	// Добавили EditAnywhere, чтобы переменные отображались в Details внутри Блупринта
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Config, Category = "Attributes")
 	float Health = 100.0f;
 
-	UPROPERTY(BlueprintReadOnly, Category = "Attributes")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Config, Category = "Attributes")
 	float Stamina = 100.0f;
 
-	UPROPERTY(BlueprintReadOnly, Category = "Attributes")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Config, Category = "Attributes")
 	int32 Ammo = 6;
 
-	UPROPERTY(BlueprintReadOnly, Category = "Attributes")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Config, Category = "Attributes")
 	int32 MaxAmmo = 6;
+
+	/** Встроенная функция Unreal Engine для получения урона */
+	virtual float TakeDamage(float DamageAmount, struct FDamageEvent const& DamageEvent, class AController* EventInstigator, AActor* DamageCauser) override;
 
 protected:
 	void OnResetVR();
@@ -66,27 +69,31 @@ protected:
 	UFUNCTION(BlueprintImplementableEvent, Category = "Combat|Effects")
 	void OnHitEffect(FVector ImpactPoint, FVector ImpactNormal);
 
-	/** Событие для вызова вспышки выстрела в Blueprint */
+	/** Событие для вызова вспышки выстрела in Blueprint */
 	UFUNCTION(BlueprintImplementableEvent, Category = "Combat|Effects")
 	void OnMuzzleFlash();
 
 protected:
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Config, Category = "Combat")
 	float WeaponRange = 5000.0f;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Config, Category = "Combat")
 	float BaseDamage = 25.0f;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Movement")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Config, Category = "Movement")
 	float WalkSpeed = 600.0f;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Movement")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Config, Category = "Movement")
 	float SprintSpeed = 1000.0f;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Movement")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Config, Category = "Movement")
 	float StaminaDrainRate = 20.0f;
 
 	bool bWantsToSprint = false;
+
+	/** Ссылка на класс виджета экрана смерти, которую мы выберем в Блупринте */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "UI")
+	TSubclassOf<class UUserWidget> LoseScreenWidgetClass;
 
 public:
 	FORCEINLINE class USpringArmComponent* GetCameraBoom() const { return CameraBoom; }

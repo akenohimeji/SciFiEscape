@@ -9,6 +9,7 @@
 #include "Components/SkeletalMeshComponent.h"
 #include "Engine/World.h"
 #include "DrawDebugHelpers.h"
+#include "Blueprint/UserWidget.h" // Инклуд для работы с виджетами
 
 AMyProjectCharacter::AMyProjectCharacter()
 {
@@ -207,4 +208,43 @@ void AMyProjectCharacter::Reload()
 		Ammo = MaxAmmo;
 		UE_LOG(LogTemp, Log, TEXT("Weapon Reloaded!"));
 	}
+}
+
+float AMyProjectCharacter::TakeDamage(float DamageAmount, FDamageEvent const& DamageEvent, AController* EventInstigator, AActor* DamageCauser)
+{
+	float ActualDamage = Super::TakeDamage(DamageAmount, DamageEvent, EventInstigator, DamageCauser);
+
+	if (Health <= 0.0f) return ActualDamage; // Если уже мертв, ничего не делаем
+
+	Health -= ActualDamage;
+	UE_LOG(LogTemp, Log, TEXT("Player took %f damage. Current Health: %f"), ActualDamage, Health);
+
+	if (Health <= 0.0f)
+	{
+		Health = 0.0f;
+		UE_LOG(LogTemp, Warning, TEXT("Player is DEAD!"));
+
+		if (LoseScreenWidgetClass)
+		{
+			UUserWidget* LoseScreen = CreateWidget<UUserWidget>(GetWorld(), LoseScreenWidgetClass);
+			if (LoseScreen)
+			{
+				LoseScreen->AddToViewport();
+
+				APlayerController* PC = Cast<APlayerController>(GetController());
+				if (PC)
+				{
+					FInputModeUIOnly InputMode;
+					InputMode.SetWidgetToFocus(LoseScreen->TakeWidget());
+					InputMode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
+
+					PC->SetInputMode(InputMode);
+					PC->bShowMouseCursor = true;
+					PC->SetPause(true); // Ставим игру на паузу
+				}
+			}
+		}
+	}
+
+	return ActualDamage;
 }
