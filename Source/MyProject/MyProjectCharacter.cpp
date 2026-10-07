@@ -187,7 +187,10 @@ void AMyProjectCharacter::Shoot()
 		{
 			UE_LOG(LogTemp, Log, TEXT("Hit target: %s"), *HitActor->GetName());
 			DrawDebugSphere(GetWorld(), HitResult.ImpactPoint, 15.0f, 12, FColor::Red, false, 2.0f);
-			UGameplayStatics::ApplyDamage(HitActor, BaseDamage, GetController(), this, UDamageType::StaticClass());
+
+			// ИСПРАВЛЕНО: Вместо переменной BaseDamage передаем жесткие 20 единиц урона
+			UGameplayStatics::ApplyDamage(HitActor, 20.0f, GetController(), this, UDamageType::StaticClass());
+
 			OnHitEffect(HitResult.ImpactPoint, HitResult.ImpactNormal);
 		}
 		else
